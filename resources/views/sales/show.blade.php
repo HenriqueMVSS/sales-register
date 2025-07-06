@@ -129,7 +129,7 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    @foreach($sale->installments as $installment)
+                                    @foreach($sale->installmentRecords as $installment)
                                         <tr>
                                             <td>{{ $installment->installment_number }}/{{ $sale->installments }}</td>
                                             <td>R$ {{ number_format($installment->amount, 2, ',', '.') }}</td>

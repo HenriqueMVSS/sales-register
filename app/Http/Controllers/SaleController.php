@@ -82,7 +82,7 @@ class SaleController extends Controller
 
     public function show(Sale $sale)
     {
-        $sale->load(['customer', 'paymentMethod', 'user', 'saleItems.product', 'installments']);
+        $sale->load(['customer', 'paymentMethod', 'user', 'saleItems.product', 'installmentRecords']);
         return view('sales.show', compact('sale'));
     }
 
@@ -91,7 +91,7 @@ class SaleController extends Controller
         $customers = Customer::all();
         $products = Product::active()->get();
         $paymentMethods = PaymentMethod::active()->get();
-        $sale->load(['saleItems.product', 'installments']);
+        $sale->load(['saleItems.product', 'installmentRecords']);
 
         return view('sales.edit', compact('sale', 'customers', 'products', 'paymentMethods'));
     }
@@ -122,7 +122,7 @@ class SaleController extends Controller
 
     public function generatePDF(Sale $sale)
     {
-        $sale->load(['customer', 'paymentMethod', 'user', 'saleItems.product', 'installments']);
+        $sale->load(['customer', 'paymentMethod', 'user', 'saleItems.product', 'installmentRecords']);
 
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('sales.pdf', compact('sale'));
 

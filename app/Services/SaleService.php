@@ -63,7 +63,7 @@ class SaleService
 
             // Remover itens e parcelas antigas
             $sale->saleItems()->delete();
-            $sale->installments()->delete();
+            $sale->installmentRecords()->delete();
 
             // Atualizar dados da venda
             $sale->update([
@@ -104,19 +104,35 @@ class SaleService
     private function createInstallments(Sale $sale, array $data)
     {
         $installments = $data['installments'] ?? 1;
-        $totalAmount = $sale->total_amount;
-        $installmentAmount = $totalAmount / $installments;
 
-        for ($i = 1; $i <= $installments; $i++) {
-            $dueDate = Carbon::parse($sale->sale_date)->addMonths($i - 1);
+        // Verificar se há parcelas personalizadas
+        if (isset($data['custom_installments']) && is_array($data['custom_installments'])) {
+            // Criar parcelas personalizadas
+            foreach ($data['custom_installments'] as $number => $installmentData) {
+                Installment::create([
+                    'sale_id' => $sale->id,
+                    'installment_number' => $number,
+                    'amount' => $installmentData['amount'],
+                    'due_date' => $installmentData['due_date'],
+                    'status' => $installmentData['status'] ?? 'pending'
+                ]);
+            }
+        } else {
+            // Criar parcelas automáticas (comportamento padrão)
+            $totalAmount = $sale->total_amount;
+            $installmentAmount = $totalAmount / $installments;
 
-            Installment::create([
-                'sale_id' => $sale->id,
-                'installment_number' => $i,
-                'amount' => $installmentAmount,
-                'due_date' => $dueDate->toDateString(),
-                'status' => 'pending'
-            ]);
+            for ($i = 1; $i <= $installments; $i++) {
+                $dueDate = Carbon::parse($sale->sale_date)->addMonths($i - 1);
+
+                Installment::create([
+                    'sale_id' => $sale->id,
+                    'installment_number' => $i,
+                    'amount' => $installmentAmount,
+                    'due_date' => $dueDate->toDateString(),
+                    'status' => 'pending'
+                ]);
+            }
         }
     }
 }

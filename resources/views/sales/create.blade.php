@@ -131,6 +131,24 @@
 
                         <hr>
 
+                        <!-- Configuração das Parcelas -->
+                        <div id="installments-config" style="display: none;">
+                            <h5>Configuração das Parcelas</h5>
+                            <div class="alert alert-info">
+                                <small>Personalize os valores e datas de vencimento de cada parcela.</small>
+                            </div>
+                            <div id="installments-container">
+                                <!-- Parcelas serão inseridas aqui via JavaScript -->
+                            </div>
+                            <div class="mb-3">
+                                <button type="button" id="reset-installments" class="btn btn-secondary btn-sm">
+                                    <i class="fas fa-undo"></i> Resetar para Valores Iguais
+                                </button>
+                            </div>
+                        </div>
+
+                        <hr>
+
                         <div class="row">
                             <div class="col-md-6">
                                 <h5>Total da Venda: <span id="total-amount">R$ 0,00</span></h5>
@@ -175,6 +193,14 @@ document.addEventListener('DOMContentLoaded', function() {
             option.textContent = '1x à vista';
             installmentsSelect.appendChild(option);
         }
+
+        // Resetar configuração das parcelas
+        updateInstallmentsConfig();
+    });
+
+    // Atualizar configuração das parcelas quando o número de parcelas mudar
+    document.getElementById('installments').addEventListener('change', function() {
+        updateInstallmentsConfig();
     });
 
     // Adicionar novo item
@@ -276,7 +302,125 @@ document.addEventListener('DOMContentLoaded', function() {
         });
 
         document.getElementById('total_amount_input').value = total;
+
+        // Atualizar configuração das parcelas
+        updateInstallmentsConfig();
     }
+
+    // Função para atualizar a configuração das parcelas
+    function updateInstallmentsConfig() {
+        const numInstallments = parseInt(document.getElementById('installments').value);
+        const totalAmount = parseFloat(document.getElementById('total_amount_input').value) || 0;
+        const saleDate = document.getElementById('sale_date').value;
+        const configDiv = document.getElementById('installments-config');
+        const container = document.getElementById('installments-container');
+
+        if (numInstallments > 1 && totalAmount > 0) {
+            configDiv.style.display = 'block';
+            container.innerHTML = '';
+
+            const installmentAmount = totalAmount / numInstallments;
+            let baseDate = new Date(saleDate);
+
+            for (let i = 1; i <= numInstallments; i++) {
+                const installmentDiv = document.createElement('div');
+                installmentDiv.className = 'row mb-2';
+                installmentDiv.innerHTML = `
+                    <div class="col-md-2">
+                        <label class="form-label">Parcela ${i}</label>
+                        <input type="text" class="form-control" value="${i}/${numInstallments}" readonly>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Valor (R$)</label>
+                        <input type="number" name="custom_installments[${i}][amount]" class="form-control installment-amount"
+                               step="0.01" min="0" value="${installmentAmount.toFixed(2)}" required>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Data de Vencimento</label>
+                        <input type="date" name="custom_installments[${i}][due_date]" class="form-control installment-date"
+                               value="${getInstallmentDate(baseDate, i - 1)}" required>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">Status</label>
+                        <select name="custom_installments[${i}][status]" class="form-select">
+                            <option value="pending">Pendente</option>
+                            <option value="paid">Pago</option>
+                        </select>
+                    </div>
+                `;
+                container.appendChild(installmentDiv);
+            }
+
+            // Adicionar event listeners para validar total das parcelas
+            container.querySelectorAll('.installment-amount').forEach(input => {
+                input.addEventListener('input', validateInstallmentsTotal);
+            });
+
+        } else {
+            configDiv.style.display = 'none';
+        }
+    }
+
+    // Função para calcular data de vencimento
+    function getInstallmentDate(baseDate, monthsToAdd) {
+        const date = new Date(baseDate);
+        date.setMonth(date.getMonth() + monthsToAdd);
+        return date.toISOString().split('T')[0];
+    }
+
+    // Função para validar total das parcelas
+    function validateInstallmentsTotal() {
+        const totalAmount = parseFloat(document.getElementById('total_amount_input').value) || 0;
+        let installmentsTotal = 0;
+
+        document.querySelectorAll('.installment-amount').forEach(input => {
+            installmentsTotal += parseFloat(input.value) || 0;
+        });
+
+        const diff = Math.abs(totalAmount - installmentsTotal);
+        const container = document.getElementById('installments-container');
+
+        // Remover alerta anterior
+        const existingAlert = container.querySelector('.alert-warning');
+        if (existingAlert) {
+            existingAlert.remove();
+        }
+
+        // Adicionar alerta se há diferença
+        if (diff > 0.01) {
+            const alert = document.createElement('div');
+            alert.className = 'alert alert-warning mt-2';
+            alert.innerHTML = `
+                <small>
+                    <i class="fas fa-exclamation-triangle"></i>
+                    Atenção: A soma das parcelas (R$ ${installmentsTotal.toFixed(2)})
+                    não confere com o total da venda (R$ ${totalAmount.toFixed(2)}).
+                </small>
+            `;
+            container.appendChild(alert);
+        }
+    }
+
+    // Resetar parcelas para valores iguais
+    document.getElementById('reset-installments').addEventListener('click', function() {
+        const numInstallments = parseInt(document.getElementById('installments').value);
+        const totalAmount = parseFloat(document.getElementById('total_amount_input').value) || 0;
+        const saleDate = document.getElementById('sale_date').value;
+        const installmentAmount = totalAmount / numInstallments;
+        let baseDate = new Date(saleDate);
+
+        document.querySelectorAll('.installment-amount').forEach((input, index) => {
+            input.value = installmentAmount.toFixed(2);
+        });
+
+        document.querySelectorAll('.installment-date').forEach((input, index) => {
+            input.value = getInstallmentDate(baseDate, index);
+        });
+
+        validateInstallmentsTotal();
+    });
+
+
 
     // Inicializar eventos
     updateItemEvents();

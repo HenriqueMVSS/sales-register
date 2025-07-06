@@ -32,7 +32,11 @@ class SaleRequest extends FormRequest
             'items.*.product_id' => 'required|exists:products,id',
             'items.*.quantity' => 'required|integer|min:1',
             'items.*.unit_price' => 'required|numeric|min:0',
-            'total_amount' => 'required|numeric|min:0'
+            'total_amount' => 'required|numeric|min:0',
+            'custom_installments' => 'nullable|array',
+            'custom_installments.*.amount' => 'required_with:custom_installments|numeric|min:0',
+            'custom_installments.*.due_date' => 'required_with:custom_installments|date',
+            'custom_installments.*.status' => 'required_with:custom_installments|in:pending,paid'
         ];
     }
 
@@ -128,6 +132,26 @@ class SaleRequest extends FormRequest
                             );
                         }
                     }
+                }
+            }
+
+            // Validar se a soma das parcelas personalizadas confere com o total
+            if ($this->filled('custom_installments') && is_array($this->custom_installments)) {
+                $totalAmount = (float) $this->total_amount;
+                $installmentsTotal = 0;
+
+                foreach ($this->custom_installments as $installment) {
+                    if (isset($installment['amount'])) {
+                        $installmentsTotal += (float) $installment['amount'];
+                    }
+                }
+
+                $diff = abs($totalAmount - $installmentsTotal);
+                if ($diff > 0.01) {
+                    $validator->errors()->add(
+                        'custom_installments',
+                        'A soma das parcelas deve ser igual ao valor total da venda.'
+                    );
                 }
             }
         });
